@@ -1,3 +1,3 @@
 # abap-graphql
 
-Under heave development
+Under heavy development
