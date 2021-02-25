@@ -3,16 +3,16 @@ import { BrowserRouter } from "react-router-dom"
 import { api, getSchemaInfo } from "../../utils"
 
 import { Content, Footer, Header } from "../Layout"
-import { defaultFiles, Provider, SchemaInfo, Files } from "./Context"
+import { contextFiles, Provider, SchemaInfo, Files } from "./Context"
 import { SApp } from "./Styled"
 
 interface Props {}
 
 export const App: React.FC<Props> = () => {
-  const [files, setFiles] = useState<Files>(defaultFiles)
+  const [files, setFiles] = useState<Files>(contextFiles)
   const [code, setCode] = useState("")
   const [schema, setSchema] = useState<SchemaInfo>({
-    objects: [],
+    types: [],
     mutations: [],
     queries: []
   })
@@ -20,17 +20,17 @@ export const App: React.FC<Props> = () => {
   useEffect(() => {
     api.post.loadSchema().then((response) => {
       if (response.data) {
-        const { object, query, mutation } = response.data
+        const { types, query, mutation } = response.data
 
-        setSchema(getSchemaInfo(object, query, mutation))
+        // setSchema(getSchemaInfo(types, query, mutation))
+        setFiles((f) => ({
+          ...f,
+          types: { ...f.types, value: response.data.types },
+          query: { ...f.query, value: response.data.query },
+          mutation: { ...f.mutation, value: response.data.mutation }
+        }))
       }
 
-      setFiles((f) => ({
-        ...f,
-        object: { ...f.object, value: response.data.object },
-        query: { ...f.query, value: response.data.query },
-        mutation: { ...f.mutation, value: response.data.mutation }
-      }))
       setCode(response.data.data)
     })
   }, [])

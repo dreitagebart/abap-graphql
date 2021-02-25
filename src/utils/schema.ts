@@ -1,17 +1,50 @@
-import { buildSchema, GraphQLObjectType } from "graphql"
+import {
+  buildSchema,
+  GraphQLObjectType,
+  parse,
+  buildASTSchema,
+  validateSchema as validate,
+  GraphQLSchema,
+  GraphQLError
+} from "graphql"
 import { SchemaInfo } from "../components"
 
+const directive = "directive @class(name: String) on FIELD_DEFINITION"
+
+export const validateSchema = (
+  types: string,
+  query: string,
+  mutation: string
+): readonly GraphQLError[] => {
+  let ast: GraphQLSchema
+
+  try {
+    const document = parse(`${directive} ${types} ${query} ${mutation}`)
+
+    ast = buildASTSchema(document)
+
+    return validate(ast)
+  } catch (error) {
+    return [error]
+  }
+
+  // const schema: GraphQLSchema = new GraphQLSchema({ types, query, mutation })
+  // return []
+}
+
 export const getSchemaInfo = (
-  object: string,
+  typeDef: string,
   query: string,
   mutation: string
 ): SchemaInfo => {
-  const objects: Array<string> = []
+  const types: Array<string> = []
   const queries: Array<string> = []
   const mutations: Array<string> = []
 
-  if (object) {
-    buildSchema(`${object} ${query} ${mutation}`, {})
+  if (typeDef) {
+    // const schema: GraphQLSchema = new GraphQLSchema({types: [{}]})
+
+    buildSchema(`${directive} ${typeDef} ${query} ${mutation}`, {})
       .toConfig()
       .types.map((type) => {
         if (type.astNode?.kind === "ObjectTypeDefinition") {
@@ -29,12 +62,12 @@ export const getSchemaInfo = (
             )
           }
 
-          return objects.push(type.name)
+          return types.push(type.name)
         }
 
         return false
       })
   }
 
-  return { objects, queries, mutations }
+  return { types, queries, mutations }
 }

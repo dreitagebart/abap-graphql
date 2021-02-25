@@ -23,18 +23,13 @@ export const Sidebar: React.FC<Props> = () => {
         <SideNav.List>
           <SideNav.ListItem glyph="tree" url="#" name="Schema" expanded>
             <SideNav.List compact>
-              <SideNav.ListItem
-                glyph="database"
-                url="#"
-                name="Object"
-                isSubItem
-              >
+              <SideNav.ListItem glyph="database" url="#" name="Types" isSubItem>
                 <SideNav.List compact level={2}>
-                  {schema.objects.map((name) => {
+                  {schema.types.map((name) => {
                     return (
                       <SideNav.ListItem key={name} glyph="rhombus-milestone">
                         <NavLink
-                          to={`/editor/object/${name}`}
+                          to={`/editor/type/${name}`}
                           activeStyle={{ fontWeight: "bold" }}
                         >
                           {name}

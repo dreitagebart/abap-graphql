@@ -21,7 +21,11 @@ const axiosClient = client()
 
 export const api = {
   post: {
-    importClass: (payload: { object: string }): Promise<AxiosResponse<any>> => {
+    importClass: (payload: {
+      object: string
+    }): Promise<
+      AxiosResponse<{ types: string; query: string; mutation: string }>
+    > => {
       return axiosClient.post("/importClass", payload)
     },
     importFunction: (payload: {
@@ -38,7 +42,7 @@ export const api = {
       return axiosClient.post("/searchClass", payload)
     },
     saveSchema: (payload: {
-      object: string
+      types: string
       query: string
       mutation: string
     }): Promise<AxiosResponse<any>> => {

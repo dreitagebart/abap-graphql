@@ -8,26 +8,65 @@ interface Props extends RouteComponentProps {}
 
 export const Apollo: React.FC<Props> = () => {
   useEffect(() => {
-    client.mutate({
-      mutation: gql`
-        mutation UpdateRates($id: String!) {
-          updateRates(id: $id) {
-            kuhl
+    client
+      .mutate({
+        mutation: gql`
+          mutation UpdateMaterial(
+            $material: String!
+            $materialType: String
+            $authorizationGroup: String
+          ) {
+            updateMaterial(
+              material: $material
+              materialType: $materialType
+              authorizationGroup: $authorizationGroup
+            ) {
+              material
+            }
           }
-        }
-      `,
-    })
+        `,
+        variables: { material: "123", materialType: "ZMAT" }
+      })
+      .then((data) => {
+        debugger
+      })
+      .catch((error) => {
+        debugger
+      })
 
     client
       .query({
         query: gql`
-          query GetRates($curreny: String!) {
-            rates(currency: $currency) {
-              currency
+          query GetMaterial($material: String!) {
+            getMaterial(material: $material) {
+              material
+              materialType
+              authorizationGroup
             }
           }
         `,
-        variables: { currency: "USD" },
+        variables: { material: "123" }
+      })
+      .then((result) => {
+        debugger
+        console.log(result)
+      })
+      .catch((error) => {
+        console.error(error)
+      })
+
+    client
+      .query({
+        query: gql`
+          query GetMaterials($material: String!) {
+            getMaterials {
+              material
+              materialType
+              authorizationGroup
+            }
+          }
+        `,
+        variables: { material: "123" }
       })
       .then((result) => {
         debugger

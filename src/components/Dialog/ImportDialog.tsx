@@ -1,34 +1,102 @@
-import React, { useCallback, useState } from "react"
+import React, { useCallback, useContext, useRef, useState } from "react"
 import debounce from "lodash.debounce"
-import { Button, Dialog, SearchInput, Select } from "fundamental-react"
-import CodeEditor from "@monaco-editor/react"
+import {
+  Button,
+  Dialog,
+  SearchInput,
+  Select,
+  Tab,
+  TabGroup
+} from "fundamental-react"
+import CodeEditor, { Monaco } from "@monaco-editor/react"
 
 import { api } from "../../utils"
 import { SImportHeader } from "./Styled"
+import { Context, FileNames, Files } from "../App"
+import { editor } from "monaco-editor"
+import { useHistory } from "react-router-dom"
 
 interface Props {
   show: boolean
   onClose: () => void
 }
 
+interface FormState {
+  selected: string
+  object: string
+  options: Array<{ key: string; text: string }>
+}
+
+const initialForm: FormState = {
+  selected: "class",
+  object: "",
+  options: [
+    { key: "class", text: "Class" },
+    { key: "function", text: "Function module" }
+  ]
+}
+
+const importFiles: Files = {
+  types: {
+    name: "typesImport.graphql",
+    value: ""
+  },
+  query: {
+    name: "queryImport.graphql",
+    value: ""
+  },
+  mutation: {
+    name: "mutationImport.graphql",
+    value: ""
+  }
+}
+
 export const ImportDialog: React.FC<Props> = ({ show, onClose }) => {
+  const history = useHistory()
+  const editorRef = useRef<editor.IStandaloneCodeEditor | null>(null)
+  const monacoRef = useRef<Monaco | null>(null)
+  const { setFiles: setGlobalFiles } = useContext(Context)
   const [result, setResult] = useState<Array<{ text: string }>>([])
-  const [form, setForm] = useState({
-    selected: "class",
-    object: "",
-    sdl: "",
-    options: [
-      { key: "class", text: "Class" },
-      { key: "function", text: "Function module" }
-    ]
-  })
+  const [files, setFiles] = useState<Files>(importFiles)
+  const [form, setForm] = useState<FormState>(initialForm)
+  const [fileName, setFileName] = useState<FileNames>("types")
 
   const handleImport = useCallback(() => {
+    setGlobalFiles((globalFile) => {
+      return {
+        ...globalFile,
+        types: {
+          ...globalFile.types,
+          value: `${files.types.value}${files.types.value ? "\n\n" : ""}${
+            globalFile.types.value
+          }`
+        },
+        query: {
+          ...globalFile.query,
+          value: `${files.query.value}${files.query.value ? "\n\n" : ""}${
+            globalFile.query.value
+          }`
+        },
+        mutation: {
+          ...globalFile.mutation,
+          value: `${files.mutation.value}${files.mutation.value ? "\n\n" : ""}${
+            globalFile.mutation.value
+          }`
+        }
+      }
+    })
+    setForm(initialForm)
     onClose()
-  }, [onClose])
+    history.push("/editor")
+  }, [onClose, files, setGlobalFiles, history])
+
+  const handleSelect = useCallback((event: React.SyntheticEvent, data: any) => {
+    setForm((f) => ({ ...f, object: data.text }))
+  }, [])
 
   const handleSearch = debounce(
     (event: React.ChangeEvent<HTMLInputElement>) => {
+      setForm((f) => ({ ...f, object: event.target.value }))
       switch (form.selected) {
         case "class": {
           return api.post
@@ -36,7 +104,8 @@ export const ImportDialog: React.FC<Props> = ({ show, onClose }) => {
             .then((response) => {
               setResult(
                 response.data.objects.map(({ key, text }: any) => ({
-                  text: `${key}`
+                  text: `${key}`,
+                  callback: () => {}
                 }))
               )
             })
@@ -47,7 +116,8 @@ export const ImportDialog: React.FC<Props> = ({ show, onClose }) => {
             .then((response) => {
               setResult(
                 response.data.objects.map(({ key, text }: any) => ({
-                  text: `${key}`
+                  text: `${key}`,
+                  callback: () => {}
                 }))
               )
             })
@@ -57,33 +127,66 @@ export const ImportDialog: React.FC<Props> = ({ show, onClose }) => {
     500
   )
 
-  const handleChange = useCallback((value) => {
-    if (value) {
-      setForm((f) => ({ ...f, sdl: value }))
-    }
+  const handleGenerate = useCallback(
+    (event: React.FormEvent<HTMLFormElement>) => {
+      debugger
+      event.preventDefault()
+
+      switch (form.selected) {
+        case "class": {
+          return api.post
+            .importClass({ object: form.object })
+            .then(({ data: { types, query, mutation } }) => {
+              setFiles((f) => ({
+                ...f,
+                types: { ...f.types, value: types },
+                query: { ...f.query, value: query },
+                mutation: { ...f.mutation, value: mutation }
+              }))
+            })
+            .catch((error) => {
+              debugger
+            })
+        }
+        case "function": {
+          return api.post
+            .importFunction({ object: form.object })
+            .then((response) => {
+              debugger
+            })
+            .catch((error) => {
+              debugger
+            })
+        }
+      }
+    },
+    [form]
+  )
+
+  const handleValidation = useCallback((markers: Array<editor.IMarker>) => {
+    markers.forEach((marker) => console.log("onValidate:", marker.message))
   }, [])
 
-  const handleGenerate = useCallback(() => {
-    switch (form.selected) {
-      case "class": {
-        return api.post
-          .importClass({ object: form.object })
-          .then((response) => {
-            debugger
-          })
+  const handleCodeChange = useCallback(
+    (value) => {
+      if (value) {
+        setFiles((f) => ({ ...f, [fileName]: { ...f[fileName], value } }))
       }
-      case "function": {
-        return api.post
-          .importFunction({ object: form.object })
-          .then((response) => {
-            debugger
-          })
-      }
-    }
-  }, [form.object, form.selected])
+    },
+    [fileName]
+  )
+
+  const handleEditorMount = (
+    editor: editor.IStandaloneCodeEditor,
+    monaco: Monaco
+  ) => {
+    monacoRef.current = monaco
+    editorRef.current = editor
+  }
 
   return (
     <Dialog
+      size="xl"
       show={show}
       onClose={onClose}
       title="Import ABAP Object"
@@ -100,35 +203,55 @@ export const ImportDialog: React.FC<Props> = ({ show, onClose }) => {
         </Button>
       ]}
     >
-      <SImportHeader>
-        <div style={{ marginRight: 8 }}>
-          <Select
-            selectedKey={form.selected}
-            options={form.options}
-            onSelect={(event, selected) =>
-              setForm((f) => ({ ...f, selected: selected.key }))
+      <form onSubmit={handleGenerate}>
+        <SImportHeader>
+          <div style={{ marginRight: 8 }}>
+            <Select
+              selectedKey={form.selected}
+              options={form.options}
+              onSelect={(event, selected) => {
+                setForm((f) => ({ ...f, selected: selected.key }))
+              }}
+            ></Select>
+          </div>
+          <div style={{ marginRight: 8 }}>
+            <SearchInput
+              placeholder="Development object"
+              searchList={result}
+              onChange={handleSearch}
+              onSelect={handleSelect}
+            ></SearchInput>
+          </div>
+          <Button typeAttr="submit" type="attention" option="emphasized">
+            Generate SDL
+          </Button>
+        </SImportHeader>
+      </form>
+      <TabGroup
+        selectedIndex={Object.keys(files).indexOf(fileName)}
+        onTabClick={(event, index) => {
+          Object.keys(files).map((key, i) => {
+            if (index === i) {
+              setFileName(key as FileNames)
             }
-          ></Select>
-        </div>
-        <div style={{ marginRight: 8 }}>
-          <SearchInput
-            subStringsearch={false}
-            placeholder="Development object"
-            searchList={result}
-            onChange={handleSearch}
-          ></SearchInput>
-        </div>
-        <Button option="emphasized" onClick={handleGenerate}>
-          Generate SDL
-        </Button>
-      </SImportHeader>
+            return false
+          })
+        }}
+      >
+        <Tab title="Types" id="types"></Tab>
+        <Tab title="Query" id="query"></Tab>
+        <Tab title="Mutation" id="mutation"></Tab>
+      </TabGroup>
       <CodeEditor
         height="90vh"
-        width="100%"
+        width="80vw"
         theme="vs-dark"
         language="graphql"
-        value={form.sdl}
-        onChange={handleChange}
+        path={files[fileName].name}
+        value={files[fileName].value}
+        onMount={handleEditorMount}
+        onChange={handleCodeChange}
+        onValidate={handleValidation}
       ></CodeEditor>
     </Dialog>
   )

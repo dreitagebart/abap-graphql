@@ -14,7 +14,6 @@ export const Test: React.FC<Props> = () => {
     <GraphiQL
       editorTheme="vs-dark"
       fetcher={async (graphQLParams) => {
-        debugger
         const data = await fetch(connection, {
           method: "POST",
           headers: {
